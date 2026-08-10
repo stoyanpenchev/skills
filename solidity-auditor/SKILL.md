@@ -1,5 +1,5 @@
 ---
-name: solidity-auditor
+name: stoyan-solidity-auditor
 description: Security audit of Solidity code while you develop. Trigger on "audit", "check this contract", "review for security". Modes - default (full repo) or a specific filename.
 ---
 
@@ -27,8 +27,11 @@ c. ToolSearch `select:Agent`
 d. Read the local `VERSION` file from the same directory as this skill
 e. Bash `curl -sf https://raw.githubusercontent.com/pashov/skills/main/solidity-auditor/VERSION`
 f. Bash `mktemp -d ./.audit-XXXXXX` → store as `{bundle_dir}`
+g. Bash `test -f x-ray/x-ray.md && echo present || echo absent` → store as `{xray_present}`
 
 If the remote VERSION fetch succeeds and differs from local, print `⚠️ You are not using the latest version. Please upgrade for best security coverage. See https://github.com/pashov/skills`. If it fails, skip silently.
+
+If `{xray_present}` is `absent`, print `⚠️ No x-ray output found — running without trust-model enrichment. Run x-ray first for best coverage.` and continue; never block on this.
 
 **Turn 1b — Model selection (Claude Code only).** This turn applies ONLY when both `AskUserQuestion` and the `Agent` tool (with a `model` parameter) are available in your runtime — i.e., Claude Code. On Codex, Gemini, Cursor's native agent, or any runtime without these, SKIP this turn entirely, leave `{agent_model}` unset, and proceed to Turn 2. Do NOT emit the question as prose. Do NOT substitute any other mechanism.
 
@@ -36,7 +39,7 @@ On Claude Code:
 
 1. Read your system prompt to detect your own model **family** (Opus, Sonnet, or Haiku). Ignore the version digits — the Agent tool's `model` parameter takes the family name (`"opus"` / `"sonnet"` / `"haiku"`), and the runtime resolves to the latest version in that family.
 2. Call `AskUserQuestion` with:
-   - Question: `"Which Claude model should the 12 audit agents use?"`
+   - Question: `"Which Claude model should the 13 audit agents use?"`
    - Three single-select options. Mark the orchestrator's own family as `(Recommended)` and place it first.
    - On each option, set the `description` field to `latest`.
    - On each option, set the `preview` field verbatim (preserve all whitespace exactly — the box widths must stay equal across all three):
@@ -68,6 +71,8 @@ On Claude Code:
 
 **Turn 2 — Prepare.** In one message, make parallel tool calls: (a) Read `{resolved_path}/report-formatting.md`, (b) Read `{resolved_path}/judging.md`.
 
+When `{xray_present}` is `present`, Read `x-ray/x-ray.md` and Write `{bundle_dir}/trust-map.md` with two blocks only: the `### Protocol Threat Profile` "Protocol classified as …" line, and the `### Actors & Adversary Model` table (`| Actor | Trust Level | Capabilities |` and its rows, stopping at `**Adversary Ranking**` or the next `###`). Write nothing below the Actors table.
+
 Then build all bundles in a single Bash command using `cat` (not shell variables or heredocs):
 
 1. `{bundle_dir}/source.md` — ALL in-scope `.sol` files, each with a `### path` header and fenced code block.
@@ -87,14 +92,15 @@ Then build all bundles in a single Bash command using `cat` (not shell variables
 | `agent-10-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/numerical-gap-agent.md` + `hacking-agents/shared-rules.md`                             |
 | `agent-11-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/trust-gap-agent.md` + `hacking-agents/shared-rules.md`                                 |
 | `agent-12-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/flow-gap-agent.md` + `hacking-agents/shared-rules.md`                                  |
+| `agent-13-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/integration-agent.md` + `hacking-agents/shared-rules.md`                               |
 
-Each bundle = source.md + SOP + specialty + shared-rules. Agents read the bundle; no Read/Grep needed for the initial scan. Targeted Read/Grep allowed for cross-file investigation.
+Each bundle = source.md + SOP + specialty + shared-rules, plus `trust-map.md` appended last when it exists. Agents read the bundle; no Read/Grep needed for the initial scan. Targeted Read/Grep allowed for cross-file investigation.
 
 Print line counts for every bundle and `source.md`. Do NOT inline source code into the Agent call prompt itself.
 
-**Turn 3a — Spawn all 12 agents.** In one message, spawn all 12 agents as **parallel BACKGROUND Agent calls** (`run_in_background=true`). If Turn 1b set `{agent_model}`, pass `model={agent_model}` on every Agent call. If `{agent_model}` is unset (Turn 1b skipped — Codex, Gemini, others), omit the `model` parameter entirely — do NOT substitute any default. The orchestrator will receive a notification when each agent completes — do NOT poll or sleep. Single phase, no later spawns. Proceed to Turn 3b only after all 12 have notified completion.
+**Turn 3a — Spawn all 13 agents.** In one message, spawn all 13 agents as **parallel BACKGROUND Agent calls** (`run_in_background=true`). If Turn 1b set `{agent_model}`, pass `model={agent_model}` on every Agent call. If `{agent_model}` is unset (Turn 1b skipped — Codex, Gemini, others), omit the `model` parameter entirely — do NOT substitute any default. The orchestrator will receive a notification when each agent completes — do NOT poll or sleep. Single phase, no later spawns. Proceed to Turn 3b only after all 13 have notified completion.
 
-Agents 1–9 use the **single-specialty prompt** (Turn 3a-i). Agents 10–12 use the **gap-hunter prompt** (Turn 3a-ii).
+Agents 1–9 use the **single-specialty prompt** (Turn 3a-i). Agents 10–12 use the **gap-hunter prompt** (Turn 3a-ii). Agent 13 uses the **integration prompt** (Turn 3a-iii).
 
 **Turn 3a-i — Single-specialty prompt template (agents 1–9, substitute real values):**
 
@@ -154,11 +160,41 @@ Output format: see shared-rules.md inside your bundle (gap-hunter-specific
 output fields are in your specialty file).
 ```
 
-**Turn 3b — Wait for all 12 agents to complete.** Once every one of the 12 spawned agents has notified completion, proceed to Turn 4. Do NOT proceed to dedup until every agent has finished — let them run to natural completion. Do NOT poll or sleep; act only on completion notifications.
+**Turn 3a-iii — Integration prompt template (agent 13, substitute real values):**
+
+```
+You are an attacker on the integration seam. Your specialty, mindset,
+source, and output rules are in your bundle. Read it fully before
+producing findings.
+
+Read first:
+- {bundle_dir}/agent-13-bundle.md (XXXX lines) — source + SOP + specialty + shared rules.
+
+The bundle contains all in-scope source. For the external contracts your
+in-scope code depends on, you MAY use WebFetch/curl to fetch the real
+out-of-scope source — etherscan verified source by deployed address
+(`$ETHERSCAN_API_KEY` from the environment), else github raw.
+
+What a finding looks like:
+- in-scope file, function — never the external contract
+- assumption — what the in-scope code assumes about the external call
+- violation — how the real external behavior breaks it, quoted
+- proof — external-code trace plus the numeric in-scope consequence
+
+Without concrete proof, it's a LEAD, not a finding. Leads are honest
+about what you couldn't verify — they're not failures, they're
+calibration. Emit them.
+
+Don't skim. Don't trust your first read. Trust your discomfort.
+
+Output format: see shared-rules.md and your specialty file inside your bundle.
+```
+
+**Turn 3b — Wait for all 13 agents to complete.** Once every one of the 13 spawned agents has notified completion, proceed to Turn 4. Do NOT proceed to dedup until every agent has finished — let them run to natural completion. Do NOT poll or sleep; act only on completion notifications.
 
 **Turn 4 — Deduplicate, validate & output.** Single-pass: deduplicate all agent results, gate-evaluate, and produce the final report in one turn. Do NOT print an intermediate dedup list — go straight to the report.
 
-1. **Dedup.** Parse every FINDING and LEAD from the 12 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N]`.
+1. **Dedup.** Parse every FINDING and LEAD from the 13 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N]`.
 
    **MANDATORY — Wide-description (group_key).** Merged group with distinct mechanisms (different `fix:`, code-level cause, or attack path) MUST list every mechanism. No dropping. Same function can have multiple coexisting bugs at the same group_key — all MUST appear.
 
@@ -191,7 +227,7 @@ output fields are in your specialty file).
 
    **Inline check before printing**: count distinct fixes from raw for this (Contract, function). ≥2 distinct but merged shows 1 → violation, add alternatives.
 
-   **MANDATORY — Completeness (HARD GATE).** Before print: list every unique (Contract, function, bug-class) in any raw FINDING/LEAD across the 12 agents. Every unique (Contract, function) MUST have ≥1 item in final. Zero = silent drop, fix it. Multiple bug-class within same (Contract, function) MAY collapse to one item (wide-description), but the (Contract, function) MUST survive. Print inline before report: `Completeness: N unique (Contract, function) in raw, N covered in final.`
+   **MANDATORY — Completeness (HARD GATE).** Before print: list every unique (Contract, function, bug-class) in any raw FINDING/LEAD across the 13 agents. Every unique (Contract, function) MUST have ≥1 item in final. Zero = silent drop, fix it. Multiple bug-class within same (Contract, function) MAY collapse to one item (wide-description), but the (Contract, function) MUST survive. Print inline before report: `Completeness: N unique (Contract, function) in raw, N covered in final.`
 
    Composite chains: if A's output feeds B's precondition AND combined impact > either alone, add `Chain: [A] + [B]` at conf = min(A, B). Most audits: 0–2.
 

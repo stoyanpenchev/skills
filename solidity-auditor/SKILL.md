@@ -71,7 +71,7 @@ On Claude Code:
 
 **Turn 2 — Prepare.** In one message, make parallel tool calls: (a) Read `{resolved_path}/report-formatting.md`, (b) Read `{resolved_path}/judging.md`.
 
-When `{xray_present}` is `present`, Read `x-ray/x-ray.md` and Write `{bundle_dir}/trust-map.md` with two blocks only: the `### Protocol Threat Profile` "Protocol classified as …" line, and the `### Actors & Adversary Model` table (`| Actor | Trust Level | Capabilities |` and its rows, stopping at `**Adversary Ranking**` or the next `###`). Write nothing below the Actors table.
+When `{xray_present}` is `present`, Read `x-ray/x-ray.md` and Write `{bundle_dir}/trust-map.md` starting with a `# Trust Map (from x-ray pre-audit)` heading, then two blocks only: the `### Protocol Threat Profile` "Protocol classified as …" line, and the `### Actors & Adversary Model` table (`| Actor | Trust Level | Capabilities |` and its rows, stopping at `**Adversary Ranking**` or the next `###`). Write nothing below the Actors table.
 
 Then build all bundles in a single Bash command using `cat` (not shell variables or heredocs):
 
@@ -194,7 +194,7 @@ Output format: see shared-rules.md and your specialty file inside your bundle.
 
 **Turn 4 — Deduplicate, validate & output.** Single-pass: deduplicate all agent results, gate-evaluate, and produce the final report in one turn. Do NOT print an intermediate dedup list — go straight to the report.
 
-1. **Dedup.** Parse every FINDING and LEAD from the 13 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N]`.
+1. **Dedup.** Parse every FINDING and LEAD from the 13 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N — <the numbers of every agent that reported it, ascending>]`.
 
    **MANDATORY — Wide-description (group_key).** Merged group with distinct mechanisms (different `fix:`, code-level cause, or attack path) MUST list every mechanism. No dropping. Same function can have multiple coexisting bugs at the same group_key — all MUST appear.
 

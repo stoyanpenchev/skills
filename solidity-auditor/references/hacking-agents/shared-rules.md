@@ -2,7 +2,7 @@
 
 ## Bundle contents
 
-Your bundle is four concatenated files: all in-scope source code, the SOP (HOW to think), your specialty agent (WHAT to look for), and these shared rules (output format, dedup tags, AND mandatory mental tool protocol).
+Your bundle is four concatenated files (five when an x-ray pre-audit exists): all in-scope source code, the SOP (HOW to think), your specialty agent (WHAT to look for), these shared rules (output format, dedup tags, AND mandatory mental tool protocol), and — when present — a trust-map appendix (protocol classification + actor/trust table) at the very end.
 
 Read the whole bundle once at the start. The bundle contains all in-scope source. Use Read/Grep only for cross-file searches or out-of-scope context (interfaces/, lib/, mocks/, test/) — do not re-read in-scope files for the initial scan.
 

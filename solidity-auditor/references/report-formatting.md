@@ -25,7 +25,7 @@ Save the report to `{project-name}-pashov-ai-audit-report-{timestamp}.md` in the
 
 [95] **1. <Title>**
 
-`ContractName.functionName` · Confidence: 95
+`ContractName.functionName` · Confidence: 95 · [agents: <N> — <agent numbers, ascending>]
 
 **Description**
 <The vulnerable code pattern and why it is exploitable, in 1 short sentence>

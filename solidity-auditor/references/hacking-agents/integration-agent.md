@@ -25,7 +25,17 @@ The external implementation is usually not in your bundle. Get it in this order 
 2. **Pinned dependency** (`package.json` / `foundry.toml` / remappings) → fetch THAT version from github raw.
 3. **Only an interface, nothing pinned** → latest github/etherscan is acceptable; accept the small version risk.
 
-Cite the exact source you read in `external_ref:` — `@ <address>:<chain>` or `@ <repo>@<commit>`. If you cannot confirm the deployed version, lean LEAD unless the bug holds across plausible versions. If you cannot fetch the real code at all, it is a LEAD — never a fabricated finding.
+Cite the exact source you read in `external_ref:` — `@ <address>:<chain>` or `@ <repo>@<commit>`. If you cannot confirm the deployed version, lean LEAD unless the bug holds across plausible versions. **Never stall on fetching.** `$ETHERSCAN_API_KEY` unset → skip step 1; for an address-only dependency try one keyless verified-source lookup (Sourcify) best-effort, otherwise fall through to steps 2–3. Time-box every fetch (`curl -m 30`; prefer curl over WebFetch when you need the timeout). No same-URL retries — on failure fall through to the next source once; a dependency you cannot fetch in time is a LEAD, never a blocker and never a fabricated finding. The whole audit blocks until you finish — never hang.
+
+### First act after fetching — enumerate
+
+The moment you fetch an external contract the in-scope code depends on, and before forming any hypothesis about it, write a table of **every** externally-callable state-mutating function it has — including ones the in-scope code never calls, because an unguarded function you never call is exactly what a third party can. One line each:
+
+| function | guard (modifier / require-based / NONE) | which of our channels it touches (CUSTODY / ORACLE / SHARED / —) |
+
+Columns 1–2 are pure external facts — take them from the read source only, never memory. Column 3 is a join with the in-scope bundle: match the mutator's target state against how our code uses it; `—` only when no in-scope state depends on it. That column is what the post-filter runs on.
+
+Enumeration is triggered by dependency, not by an assumption: every external contract you call any function on — or whose state your accounting consumes — is fetched and fully enumerated, the boring ones included. This table, not your in-scope hypotheses, is what the inbound pass hunts from. Enumeration terminates; hypothesis generation does not.
 
 ## Method — trace the whole chain
 
@@ -39,27 +49,32 @@ For each ledger row:
 
 The first pass asks what the external contract returns when WE call it. This pass asks the opposite: can a third party mutate external state, out of band, to break one of OUR invariants — without ever touching our code?
 
-### Inbound gate (mirror of the ledger)
-
-For each in-scope function that depends on external state, materialize one row before hunting:
-
-```
-<InScope>.<fn>() depends on external state S → invariant: <named property that must hold> → who else can mutate S?
-```
-
-`S` is an asset we account for, a value we read as truth, or a cell we share. **No named in-scope invariant → no row, no finding.** This is the scope cap: it keeps you on our broken property, not on foreign ABI trivia.
-
-### Three channels
+### Three channels (the table's third column)
 
 - **CUSTODY** — an external asset we account for (balance, position, share). Can a third party mutate it (burn, freeze, rebase, fee-on-transfer, external withdraw) while our accounting stays put?
 - **ORACLE** — external state we read as truth. Can a third party move it between our read and our action?
 - **SHARED** — external state we write and others read, or read and others write. Can a foreign flow cross our value through that cell?
 
-### Sibling asymmetry (highest-yield signal)
+### Derive candidates from the table
 
-On the fetched external source, hunt **pairs** of state-mutating functions that logically require the same guard where one lacks it. Read the modifier/body to confirm a guard exists; **absent guard = finding, assumed guard = error.**
+Your hypotheses come from the enumeration table, not from in-scope reading — that is the whole point of enumerating. Two mechanical signals:
+- any row whose guard is **NONE**;
+- any pair of comparable operations whose guards differ (e.g. a position's `decrease` gated by an ownership check while its sibling `increase` is not) — the guard column makes the comparison mechanical.
 
-For any ratio, share price, or proportion the in-scope code treats as coupled, also ask: can a third party move one side via an external mutation without moving the other? Decoupling two quantities the code assumes move together is its own finding.
+### Post-filter — does it break a named invariant?
+
+For each candidate, name the in-scope invariant a third party threatens by calling it, through one of the three channels:
+
+```
+<external mutator> callable by <who> → threatens <named in-scope invariant> via <CUSTODY|ORACLE|SHARED>
+```
+
+- Threatens a named invariant, **proven** (traced to the numeric in-scope consequence) → **FINDING**.
+- Threatens a named invariant, **unproven** → **LEAD**.
+- Threatens a named invariant but the only fix is external and undefendable → **LEAD/informational** (per Scope guard).
+- Threatens **no** named invariant → **DROP**: stays in the table, never emitted — not even as a LEAD. A bare "external has an open function" is out of scope, not a lead. DROP applies only here — when nothing of ours is threatened.
+
+For any ratio, share price, or proportion the in-scope code treats as coupled, also ask: can a third party move one side via an external mutation without moving the other? Decoupling two quantities the code assumes move together is its own candidate.
 
 Emit inbound findings with the same FINDING block and `bug_class: integration-assumption-violation`, re-anchored to the in-scope function that holds the invariant — `assumption:` is the invariant, `external_ref:` is the external mutator that breaks it.
 

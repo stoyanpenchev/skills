@@ -1,5 +1,5 @@
 ---
-name: solidity-auditor
+name: stoyan-solidity-auditor
 description: Security audit of Solidity code while you develop. Trigger on "audit", "check this contract", "review for security", "loop mode", "run the auditor in loop mode", "run 3 passes". Modes - default (full repo) or a specific filename. Loop mode runs several passes in one scan, each pass told what the earlier ones found, and ends in one combined report; it remembers findings between scans in a ledger.
 ---
 
@@ -39,7 +39,7 @@ You are the orchestrator of a parallelized smart contract security audit.
 
 **Vocabulary (used throughout this file):**
 
-- **run** — one pass of the 12 agents.
+- **run** — one pass of the 13 agents.
 - **scan** — one invocation of this skill. A scan holds 1 or more runs.
 
 The ledger's `scans` column counts scans. The report's `seen in k/N runs` counts runs inside one scan and is never written to the ledger. Two numbers, two names — do not mix them.
@@ -95,7 +95,7 @@ If the remote VERSION fetch succeeds, compare the two as **numbers** and warn **
 
 > **Lower, not different.** A plain "differs" test warns the wrong person: somebody working on an unreleased version has a local `VERSION` **above** the published one, and gets told to upgrade to the version they are writing. Local equal to remote, or local above it, prints nothing.
 
-**Turn 1b — Model and pass count.** This turn asks **two questions in one `AskUserQuestion` call**: which model the 12 agents use, and how many passes the scan runs. The runner is interrupted once, before any work starts.
+**Turn 1b — Model and pass count.** This turn asks **two questions in one `AskUserQuestion` call**: which model the 13 agents use, and how many passes the scan runs. The runner is interrupted once, before any work starts.
 
 > **The two questions do not fail the same way.** On a runtime without `AskUserQuestion` and an `Agent` tool that takes a `model` parameter — Codex, Gemini, Cursor's native agent — the **model** question is skipped silently, `{agent_model}` is left unset, and no prose replaces it. The **pass** question is not skipped: it falls through to the printed block in Turn 1b-ii, which stops and waits. This turn as a whole is never skipped. A later editor must not restore a blanket "SKIP this turn entirely" rule: it was true when this turn asked one question, and it is false now.
 
@@ -105,7 +105,7 @@ Question 1 — model:
 
 1. Read your system prompt to detect your own model **family** (Opus, Sonnet, or Haiku). Ignore the version digits — the Agent tool's `model` parameter takes the family name (`"opus"` / `"sonnet"` / `"haiku"`), and the runtime resolves to the latest version in that family.
 2. Put this question in the call:
-   - Question: `"Which Claude model should the 12 audit agents use?"`
+   - Question: `"Which Claude model should the 13 audit agents use?"`
    - Three single-select options. Mark the orchestrator's own family as `(Recommended)` and place it first.
    - On each option, set the `description` field to `latest`.
    - On each option, set the `preview` field verbatim (preserve all whitespace exactly — the box widths must stay equal across all three):
@@ -137,7 +137,7 @@ Question 1 — model:
 
 Question 2 — pass count. It goes in the **same call**, second:
 
-4. Question: `"How many passes should this audit run? Each pass is a full 12-agent audit, and every pass after the first is told what the earlier ones found, so it hunts new ground. You get one combined report at the end."`
+4. Question: `"How many passes should this audit run? Each pass is a full 13-agent audit, and every pass after the first is told what the earlier ones found, so it hunts new ground. You get one combined report at the end."`
 
    Three single-select options, `3 passes` first and marked `(Recommended)`. Each carries a `preview` box in this turn's style — the boxes are **60 characters wide, equal to the model picker's**, so two questions in one prompt look like one thing. Set `preview` verbatim, whitespace preserved:
 
@@ -191,7 +191,7 @@ Question 2 — pass count. It goes in the **same call**, second:
 ```
 How many passes should this audit run?
 
-Each pass is a full 12-agent audit. Every pass after the first is told what the
+Each pass is a full 13-agent audit. Every pass after the first is told what the
 earlier passes found, so it hunts new ground. You get one combined report at the end.
 
   1) 1 pass    — today's audit, about 15 minutes. Nothing is written to disk.
@@ -263,9 +263,9 @@ This is the `P` in the Scope table's `Passes` row. The `R` — how many passes a
 
 Then build `source.md`, run the memory step, and only then cat the bundles — in that order, because the bundles carry a file the memory step writes:
 
-> **Turn 2 is split across the loop.** Step 1 runs **once per scan**: `source.md` provably cannot change between passes — one git SHA for the whole loop, no pruning between them — and it is the expensive half of the build. Step 2c and step 3 run **once per pass**, because only they carry the knowns, and re-catting twelve bundles from files already on disk is one Bash command. Steps 2a and 2b run once per scan with step 1, since both read that frozen source.
+> **Turn 2 is split across the loop.** Step 1 runs **once per scan**: `source.md` provably cannot change between passes — one git SHA for the whole loop, no pruning between them — and it is the expensive half of the build. Step 2c and step 3 run **once per pass**, because only they carry the knowns, and re-catting thirteen bundles from files already on disk is one Bash command. Steps 2a and 2b run once per scan with step 1, since both read that frozen source.
 >
-> **One `{bundle_dir}`, reused, everything overwritten.** `source.md` is written once and never touched again; `known-findings.md` and the twelve `agent-N-bundle.md` files are overwritten each pass. Disk stays flat whether the runner picked 1 pass or 10 — a directory per pass would hold 12 × N copies of the whole repo. This is safe because Turn 3b is a hard barrier: no pass-K agent is still reading a bundle when pass K+1 overwrites it. The cost, accepted: after the loop you cannot see what pass 2 told its agents. The durable record is the run files and the ledger.
+> **One `{bundle_dir}`, reused, everything overwritten.** `source.md` is written once and never touched again; `known-findings.md` and the thirteen `agent-N-bundle.md` files are overwritten each pass. Disk stays flat whether the runner picked 1 pass or 10 — a directory per pass would hold 13 × N copies of the whole repo. This is safe because Turn 3b is a hard barrier: no pass-K agent is still reading a bundle when pass K+1 overwrites it. The cost, accepted: after the loop you cannot see what pass 2 told its agents. The durable record is the run files and the ledger.
 
 1. **Once per scan.** `{bundle_dir}/source.md` — ALL in-scope `.sol` files, each with a `### path` header and fenced code block.
 2. **Turn 2 step 2 — Name map, prune and known findings** (below). SKIPPED whole when memory is off. Parts a and b run once per scan; part c runs **every pass**, because the ledger it reads grows as the loop learns.
@@ -285,8 +285,9 @@ Then build `source.md`, run the memory step, and only then cat the bundles — i
 | `agent-10-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/numerical-gap-agent.md` + `hacking-agents/shared-rules.md`                             |
 | `agent-11-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/trust-gap-agent.md` + `hacking-agents/shared-rules.md`                                 |
 | `agent-12-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/flow-gap-agent.md` + `hacking-agents/shared-rules.md`                                  |
-| **every one of the 12** | **+ `report-language.md`, appended after `shared-rules.md`** — unconditional, every mode, every pass. The agent's `description:` is the seed of the report's Description, so the language rule has to reach the writer and not only the editor. |
-| **every one of the 12** | **+ `{bundle_dir}/known-findings.md`, appended last** — only when memory is on **and** step 2 wrote that file. Never appended on a plain scan, and never appended when the ledger holds no record. |
+| `agent-13-bundle.md`  | `source.md` + `senior-auditor-sop.md` + `hacking-agents/integration-agent.md` + `hacking-agents/shared-rules.md`                               |
+| **every one of the 13** | **+ `report-language.md`, appended after `shared-rules.md`** — unconditional, every mode, every pass. The agent's `description:` is the seed of the report's Description, so the language rule has to reach the writer and not only the editor. |
+| **every one of the 13** | **+ `{bundle_dir}/known-findings.md`, appended last** — only when memory is on **and** step 2 wrote that file. Never appended on a plain scan, and never appended when the ledger holds no record. |
 
 Each bundle = source.md + SOP + specialty + shared-rules + report-language (+ known findings, when there are any). Agents read the bundle; no Read/Grep needed for the initial scan. Targeted Read/Grep allowed for cross-file investigation.
 
@@ -360,7 +361,7 @@ END { for (i=1; i<=n; i++) printf "## %s\n\n%s\n", ord[i], body[ord[i]] }
 ' {bundle_dir}/source-names.tsv {bundle_dir}/memory-before.tsv > {bundle_dir}/known-findings.body.md
 ```
 
-**If that file is empty, stop here** — delete it, write no `known-findings.md`, and append nothing to the bundles. An empty ledger (a first-ever scan, or a scan whose every record the prune removed) must not hand twelve agents an empty heading.
+**If that file is empty, stop here** — delete it, write no `known-findings.md`, and append nothing to the bundles. An empty ledger (a first-ever scan, or a scan whose every record the prune removed) must not hand thirteen agents an empty heading.
 
 Otherwise write `{bundle_dir}/known-findings.md` as this exact prose followed by the body, unchanged:
 
@@ -391,7 +392,7 @@ twice and recognised never.
 <body — one `## Contract.function` section per function, as generated above>
 ````
 
-The label-reuse rule is written here, once, for **both** readers of this file: the 12 agents,
+The label-reuse rule is written here, once, for **both** readers of this file: the 13 agents,
 who write the bug class in a finding, and Turn 4 step 4, which writes it into a key.
 
 **The builder takes any 6-column ledger file.** On a single-run scan that file is the pruned
@@ -402,26 +403,28 @@ passing memory down a loop; the command does not change, only the file it is poi
 
 Print line counts for every bundle and `source.md`. Do NOT inline source code into the Agent call prompt itself.
 
-**Turn 3a — Spawn all 12 agents.** Runs **every pass**. In one message, spawn all 12 agents as **parallel BACKGROUND Agent calls** (`run_in_background=true`). If Turn 1b set `{agent_model}`, pass `model={agent_model}` on every Agent call. If `{agent_model}` is unset (Turn 1b skipped — Codex, Gemini, others), omit the `model` parameter entirely — do NOT substitute any default. The orchestrator will receive a notification when each agent completes — do NOT poll or sleep. Single phase, no later spawns. Proceed to Turn 3b only after all 12 have notified completion.
+**Turn 3a — Spawn all 13 agents.** Runs **every pass**. In one message, spawn all 13 agents as **parallel BACKGROUND Agent calls** (`run_in_background=true`). If Turn 1b set `{agent_model}`, pass `model={agent_model}` on every Agent call. If `{agent_model}` is unset (Turn 1b skipped — Codex, Gemini, others), omit the `model` parameter entirely — do NOT substitute any default. The orchestrator will receive a notification when each agent completes — do NOT poll or sleep. Single phase, no later spawns. Proceed to Turn 3b only after all 13 have notified completion.
 
-Agents 1–9 use the **single-specialty prompt** (Turn 3a-i). Agents 10–12 use the **gap-hunter prompt** (Turn 3a-ii).
+Agents 1–9 use the **single-specialty prompt** (Turn 3a-i). Agents 10–12 use the **gap-hunter prompt** (Turn 3a-ii). Agent 13 uses the **integration prompt** (Turn 3a-iii).
 
 **Turn 3a-i — Single-specialty prompt (agents 1–9).** Use the template under "Single-specialty prompt" in `{resolved_path}/agent-prompts.md`, substituting `{bundle_dir}`, the agent number and the bundle line count.
 
 **Turn 3a-ii — Gap-hunter prompt (agents 10–12).** Use the template under "Gap-hunter prompt" in the same file.
+
+**Turn 3a-iii — Integration prompt (agent 13).** Use the template under "Integration prompt" in the same file.
 
 Two rules that file carries, repeated here because they are conditions and not text:
 
 - The **"Known findings"** paragraph is included **only when memory is on and `known-findings.md` was appended**. On a plain scan the prompt is byte-identical to the one it has always been — a paragraph about a section that is not there would send agents hunting for it.
 - The **READ-ONLY** paragraph is **unconditional** — every agent, every mode, every pass. A real scan proved it necessary: an agent built Foundry proof-of-concept files inside the audited repository and deleted them afterwards. It left the tree clean and the stored SHA honest, and it was still wrong. A later editor must not make it conditional, and must not soften it into a preference.
 
-**Turn 3b — Wait for all 12 agents to complete.** Runs **every pass**. Once every one of the 12 spawned agents has notified completion, proceed to Turn 4. Do NOT proceed to dedup until every agent has finished — let them run to natural completion. Do NOT poll or sleep; act only on completion notifications.
+**Turn 3b — Wait for all 13 agents to complete.** Runs **every pass**. Once every one of the 13 spawned agents has notified completion, proceed to Turn 4. Do NOT proceed to dedup until every agent has finished — let them run to natural completion. Do NOT poll or sleep; act only on completion notifications.
 
 **While you wait, on the first pass only, Read `{resolved_path}/dedup-and-assembly.md`.** It holds the whole of Turn 4 and Turn 5. This turn is the one point in the scan where the orchestrator has nothing else to do, so the read costs no wall-clock; and having it in hand before Turn 4 starts is what keeps Turn 4 from improvising. Later passes already hold it.
 
-**When an agent dies.** Continue the pass with the eleven that came back. **Never respawn it, in any mode.** A retry costs an unbounded wait for one twelfth of the coverage, and a loop covers it for free — the next pass runs the same twelve specialties again, knowing what this one found. Record the loss in all three places, or it is a silent coverage loss: the pass summary line (Turn 4 step 5), the `run-K.md` header, and the report's `Passes` row.
+**When an agent dies.** Continue the pass with the twelve that came back. **Never respawn it, in any mode.** A retry costs an unbounded wait for one thirteenth of the coverage, and a loop covers it for free — the next pass runs the same thirteen specialties again, knowing what this one found. Record the loss in all three places, or it is a silent coverage loss: the pass summary line (Turn 4 step 5), the `run-K.md` header, and the report's `Passes` row.
 
-**When a whole pass produces nothing** — the bundle build failed, or all twelve died:
+**When a whole pass produces nothing** — the bundle build failed, or all thirteen died:
 
 **Record the failure before doing either.** A pass that produces nothing writes no run file, so nothing else on disk knows it was ever planned:
 

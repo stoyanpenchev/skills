@@ -231,7 +231,7 @@ if [ -n "$passes_planned" ] && [ "$passes_planned" -gt 1 ] 2>/dev/null; then
   for k in $(seq 1 "$passes_planned"); do
     a=$(scope "pass_${k}_agents"); fail=$(scope "pass_${k}_failed")
     if [ -n "$fail" ]; then short="${short:+$short, }pass $k failed"
-    elif [ -n "$a" ] && [ "$a" != "12/12" ]; then short="${short:+$short, }pass $k ran $a agents"; fi
+    elif [ -n "$a" ] && [ "$a" != "13/13" ]; then short="${short:+$short, }pass $k ran $a agents"; fi
   done
   if [ "$N" -lt "$passes_planned" ]; then cell="$N of $passes_planned"; else cell="$passes_planned"; fi
   [ -n "$short" ] && cell="$cell ($short)"

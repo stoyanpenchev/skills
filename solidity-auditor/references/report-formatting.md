@@ -76,6 +76,8 @@ This is what the assembler emits.
 
 `ContractName.functionName` · Confidence: 95 · seen in 2/3 runs · KNOWN (4 scans) <!-- runs segment only when passes > 1; memory segment only when memory is on -->
 
+**External** — <external_ref verbatim> <!-- only when the finding carries external_ref -->
+
 **Description**
 <The vulnerable code pattern and why it is exploitable, in 1 short sentence>
 

@@ -1,6 +1,6 @@
 # Dedup, record and assembly — Turn 4 and Turn 5
 
-This file holds the two turns that run **after the 12 agents return**: Turn 4
+This file holds the two turns that run **after the 13 agents return**: Turn 4
 deduplicates, gates, tags and records each pass, and Turn 5 assembles and prints
 the one report. `SKILL.md` keeps the name of each turn and the condition that
 decides whether it runs; the procedure is here.
@@ -21,7 +21,7 @@ Both turns use `{stamp}`, `{bundle_dir}`, `{passes}`, `{resolved_path}` and
 
 Then, after the loop body has run `{passes}` times (or stopped early), go to Turn 5 once.
 
-1. **Dedup.** Parse every FINDING and LEAD from the 12 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N]`.
+1. **Dedup.** Parse every FINDING and LEAD from the 13 agents. Group by `group_key` (Contract | function | bug-class). Exact-match first; merge synonymous bug_class within same (Contract, function). Keep best per group, number sequentially, annotate `[agents: N]`.
 
    **MANDATORY — Canonicalise the bug-class label (HARD GATE).** Before grouping, for every (Contract, function) whose agents used **more than one** bug-class label, choose **one** label and rewrite every one of those findings to carry it. Then group.
 
@@ -65,7 +65,7 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
 
    **Inline check before printing**: count distinct fixes from raw for this (Contract, function). ≥2 distinct but merged shows 1 → violation, add alternatives.
 
-   **MANDATORY — Completeness (HARD GATE).** Before print: list every unique (Contract, function, bug-class) in any raw FINDING/LEAD across the 12 agents. Every unique (Contract, function) MUST have ≥1 item in final. Zero = silent drop, fix it. Multiple bug-class within same (Contract, function) MAY collapse to one item (wide-description), but the (Contract, function) MUST survive. Print inline before report: `Completeness: N unique (Contract, function) in raw, N covered in final.`
+   **MANDATORY — Completeness (HARD GATE).** Before print: list every unique (Contract, function, bug-class) in any raw FINDING/LEAD across the 13 agents. Every unique (Contract, function) MUST have ≥1 item in final. Zero = silent drop, fix it. Multiple bug-class within same (Contract, function) MAY collapse to one item (wide-description), but the (Contract, function) MUST survive. Print inline before report: `Completeness: N unique (Contract, function) in raw, N covered in final.`
 
    Composite chains: if A's output feeds B's precondition AND combined impact > either alone, add `Chain: [A] + [B]` at conf = min(A, B). Most audits: 0–2.
 
@@ -109,9 +109,9 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
    ````markdown
    # Run K — solidity-auditor
 
-   <!--RUN pass=K of=N stamp={stamp} sha=abc1234 agents=11/12-->
+   <!--RUN pass=K of=N stamp={stamp} sha=abc1234 agents=12/13-->
 
-   Pass K of N · <date> · `abc1234` · 11/12 agents returned — the access-control agent died.
+   Pass K of N · <date> · `abc1234` · 12/13 agents returned — the access-control agent died.
 
    ## Findings
 
@@ -122,7 +122,7 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
    <finding blocks, kind=LEAD>
    ````
 
-   The sentence is for the human; the `<!--RUN-->` marker is what shell reads. `agents=11/12` is where the `Passes` row gets its degradation text, so a lost agent is on disk and not only in a printed line that scrolls away — and the dead agent's **name** stays here, in the sentence, and never enters the Scope table.
+   The sentence is for the human; the `<!--RUN-->` marker is what shell reads. `agents=12/13` is where the `Passes` row gets its degradation text, so a lost agent is on disk and not only in a printed line that scrolls away — and the dead agent's **name** stays here, in the sentence, and never enters the Scope table.
 
    **These two headings and no others, in every run.** No `## New findings` in a later run — newness is already carried by the `NEW` / `KNOWN` tag and by `seen in k/N runs`, and a heading saying it again is a second source of truth that can disagree with the first. **No "verified clean", "checked" or "sound" section, under any name.** A path a pass did not raise is not a path a pass cleared, and a real scan invented such a section unasked. Nothing ever reads it back, and it is the same overstated-coverage defect this whole design exists to kill.
 
@@ -153,6 +153,7 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
    - **`conf`** — an integer, on `kind=FINDING` blocks only. **A `kind=LEAD` block carries no `conf` attribute at all** — a lead is not scored, and writing `0` would sort it against real numbers.
    - **`kind`** — `FINDING` or `LEAD`.
    - **`agents`** — carried from `[agents: 8]`. Informational; nothing parses it.
+   - **External** — on a `kind=FINDING` block whose finding carries an `external_ref:`, and on no other: the first line of the body, before `**Description**`, is `**External** — <external_ref verbatim>`. A lead is one line and has no body. The line is data, outside the language rule, and it never starts with a backtick — the top-3 extractor reads the first backtick line after the title as the location.
 
    **Write the markers exactly as printed.** They are the only thing standing between a finding and a silent loss: the assembler counts open markers against close markers against readable blocks, and a disagreement becomes a visible `**Run files**` row in the report saying how many findings could not be read. The report may print **less** than the scan found; it may never claim to print **more**. A fudged marker costs a visible warning, not a hidden hole — but it still costs the finding.
 
@@ -162,14 +163,14 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
 
    **The title and the Description are written in Simplified Technical English**, per `{resolved_path}/report-language.md`, which Turn 2 read. Because Turn 5 re-words nothing, this is the **only** step where the report's sentences can be made readable — there is no later cleanup pass and there must never be one. Four pieces of text obey that file: the title, the Description, the Lead description, and the Lead's code-smell list.
 
-   Three things it does **not** reach, and a later editor must not extend it to them: the **diff** inside the Fix block, which is pasted verbatim from the agent, the **bug-class label** in the `key` attribute, which is a memory key and is chosen by step 1 and step 4a, and the **identifiers** on the location line, which are spelled as the source spells them. Softening a label to read better writes a second ledger record for one bug.
+   Four things it does **not** reach, and a later editor must not extend it to them: the **diff** inside the Fix block, which is pasted verbatim from the agent, the **bug-class label** in the `key` attribute, which is a memory key and is chosen by step 1 and step 4a, the **identifiers** on the location line, which are spelled as the source spells them, and the **External** line, which is an `external_ref:` pasted verbatim. Softening a label to read better writes a second ledger record for one bug.
 
    Where the agent handed up a sentence that already meets the rules, keep the agent's words. Where it did not — a metaphor, an `-ing` clause, forty words, `catastrophic` — rewrite the sentence and keep the claim. Rewriting is about the wording only: the mechanism, the actor and the effect the agent proved are not up for revision here, and the gate has already run.
 
-   **Then record the agent count**, once per pass, always, `12/12` included:
+   **Then record the agent count**, once per pass, always, `13/13` included:
 
    ```bash
-   printf '%s\t%s\n' pass_{K}_agents "11/12" >> .solidity-auditor/runs/{stamp}/scope.tsv
+   printf '%s\t%s\n' pass_{K}_agents "12/13" >> .solidity-auditor/runs/{stamp}/scope.tsv
    ```
 
    Written only when a pass ran short, a missing key would mean two different things — a whole pass and a lost pass — and the assembler could not tell them apart.
@@ -184,7 +185,7 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
    - **new** = the key was not in the ledger before this pass. A lookup, not a judgment.
    - `ledger N records` is the row count of `.solidity-auditor/memory.tsv` after step 6 has written it, so print this line after step 6.
    - The parentheses are printed **only when the ledger was non-empty when the scan started**. On a first-ever scan every key is new and they say nothing: `Pass 1/3 — 17 findings · 6 leads · ledger 17 records`.
-   - When a pass lost an agent, the line gains a clause: `Pass 2/3 — 15 findings (2 new) · 6 leads (0 new) · ledger 39 records · 11/12 agents`.
+   - When a pass lost an agent, the line gains a clause: `Pass 2/3 — 15 findings (2 new) · 6 leads (0 new) · ledger 39 records · 12/13 agents`.
    - When **both** new-counts are zero, the line ends with `· no new ground`. That is the loop's most informative outcome — the passes have converged — and it must not have to be inferred from two zeros:
 
    ```
@@ -279,7 +280,7 @@ Then, after the loop body has run `{passes}` times (or stopped early), go to Tur
 
    d. **In a loop, this step runs after every pass, and it rebuilds rather than appends.** Pass K+1 learns what pass K found by reading the merged ledger, so the write cannot wait for the end. But re-running the merge N times must not raise `scans` by N, because `scans` counts scans. The command above already holds this: it always reads the **pre-scan photocopy** plus **everything this scan has accumulated so far**, so `scans` rises by exactly 1 however many passes ran. Nothing new is invented per pass, and no "have I counted this key already?" flag exists to get wrong. It also keeps the interrupt rule for the whole loop: a loop killed at pass 3 keeps what passes 1 and 2 learned, written atomically.
 
-   Then the next pass starts at **Turn 2 step 2c**, which rebuilds `known-findings.md` from the freshly merged `.solidity-auditor/memory.tsv` — not from the photocopy, or pass K+1 would never see pass K's findings — and re-cats the twelve bundles at Turn 2 step 3.
+   Then the next pass starts at **Turn 2 step 2c**, which rebuilds `known-findings.md` from the freshly merged `.solidity-auditor/memory.tsv` — not from the photocopy, or pass K+1 would never see pass K's findings — and re-cats the thirteen bundles at Turn 2 step 3.
 
 ## Turn 5
 
